@@ -9,12 +9,17 @@
 
 #include "G4Scintillation.hh"
 #include "DsG4Scintillation.h"
+#include "DsG4ScintSimple.h"
+#include "DsG4OpAbsReemit.h"
+
 
 #include "G4OpAbsorption.hh"
 #include "G4OpRayleigh.hh"
 #include "G4OpBoundaryProcess.hh"
 #include "G4ProcessManager.hh"
 #include "G4FastSimulationManagerProcess.hh"
+
+
 
 #include "SniperKernel/SniperPtr.h"
 #include "SniperKernel/ToolFactory.h"
@@ -147,7 +152,44 @@ void DsPhysConsOptical::ConstructProcess()
         scint->SetScintillationYieldFactor(m_ScintillationYieldFactor); // 1.);
         scint->SetTrackSecondariesFirst(m_doTrackSecondariesFirst);
         scint_ = scint;
-    }
+    } else if (1 && m_useScintSimple){
+        LogInfo<<"Scintillation physics process : ScintSample is used"<<std::endl;
+        DsG4ScintSimple * scint= new DsG4ScintSimple();
+        scint->SetDoQuenching(m_enableQuenching);
+        scint->SetBirksConstant1(m_birksConstant1);
+        scint->SetBirksConstant2(m_birksConstant2);
+        scint->SetGammaSlowerTimeConstant(m_gammaSlowerTime);
+        scint->SetGammaSlowerRatio(m_gammaSlowerRatio);
+        scint->SetNeutronSlowerTimeConstant(m_neutronSlowerTime);
+        scint->SetNeutronSlowerRatio(m_neutronSlowerRatio);
+        scint->SetAlphaSlowerTimeConstant(m_alphaSlowerTime);
+        scint->SetAlphaSlowerRatio(m_alphaSlowerRatio);
+        scint->SetDoReemission(m_doReemission);
+        scint->SetDoReemissionOnly(m_doReemissionOnly);
+        scint->SetDoBothProcess(m_doScintAndCeren);
+        scint->SetApplyPreQE(m_scintPhotonScaleWeight>1.);
+        scint->SetPreQE(1./m_scintPhotonScaleWeight);
+        scint->SetScintillationYieldFactor(m_ScintillationYieldFactor);
+        scint->SetUseFastMu300nsTrick(m_useFastMu300nsTrick);
+        scint->SetTrackSecondariesFirst(true);
+        scint->SetFlagDecayTimeFast(flagDecayTimeFast);
+        scint->SetFlagDecayTimeSlow(flagDecayTimeSlow);
+        scint->SetVerboseLevel(0);
+
+        scint_ = scint;   
+
+
+      }
+
+     DsG4OpAbsReemit* absreemit_PPO =0;
+     DsG4OpAbsReemit* absreemit_bisMSB =0;
+      if (m_useAbsReemit){
+                absreemit_PPO= new DsG4OpAbsReemit("PPO");
+                absreemit_bisMSB= new DsG4OpAbsReemit("bisMSB");
+                 absreemit_PPO->SetVerboseLevel(0);
+                 absreemit_bisMSB->SetVerboseLevel(0);
+              }
+
 
     
 
@@ -194,7 +236,7 @@ void DsPhysConsOptical::ConstructProcess()
             pmanager->SetProcessOrderingToLast(scint_, idxPostStep);
         }
 
-        if (particle == G4OpticalPhoton::Definition()) {
+       /* if (particle == G4OpticalPhoton::Definition()) {
             if (absorb)
                 pmanager->AddDiscreteProcess(absorb);
             if (rayleigh)
@@ -204,6 +246,20 @@ void DsPhysConsOptical::ConstructProcess()
             if (m_doFastSim) {
                 pmanager->AddDiscreteProcess(fast_sim_man);
             }
-        }
-    }
+        }*/
+          if(particle==G4OpticalPhoton:: Definition()){
+              if (absreemit_PPO)
+                  pmanager->AddDiscreteProcess(absreemit_PPO);
+              if (absreemit_bisMSB)
+                  pmanager->AddDiscreteProcess(absreemit_bisMSB);
+              if (absorb)
+                  pmanager->AddDiscreteProcess(absorb);
+              if (rayleigh)
+                  pmanager->AddDiscreteProcess(rayleigh);
+              pmanager->AddDiscreteProcess(boundproc);
+             //pmanager->AddDiscretePrcess(pee);
+              if (m_doFastSim)
+                  pmanager->AddDiscreteProcess(fast_sim_man);
+           }
+  }
 }
